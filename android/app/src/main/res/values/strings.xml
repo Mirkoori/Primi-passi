@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Piccoli Passi</string>
+    <string name="title_activity_main">Piccoli Passi</string>
+    <string name="package_name">it.devori.piccolipassi</string>
+    <string name="custom_url_scheme">it.devori.piccolipassi</string>
+</resources>
