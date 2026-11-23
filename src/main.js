@@ -28,6 +28,51 @@ const num = (v) => {
 const meseCorrente = (b) => Math.min(12, eta(b).use.m);
 const chiave = (m, a, i) => `${m}-${a}-${i}`;
 
+const COLORI = { giallo: "giallo/senape", verde: "verde", marrone: "marrone", arancio: "arancione", bianco: "bianco/grigio", rosso: "con sangue rosso", nero: "nero" };
+const COL_HEX = { giallo: "#f2c230", verde: "#6aa84f", marrone: "#8b5a2b", arancio: "#f08a24", bianco: "#e9e6e1", rosso: "#d9363e", nero: "#2b2b2b" };
+const CONSISTENZE = { liquida: "liquida", molle: "molle", normale: "normale", dura: "dura a pallini" };
+
+// Avvisi gentili basati sul diario. Informativi, non diagnostici.
+function segnali(b) {
+  if (b.noAvvisi) return [];
+  const out = [];
+  const now = Date.now();
+  const giorni = Math.floor((now - parseDay(b.nascita).getTime()) / 86400000);
+  const nasc = b.logs.filter((l) => l.tipo === "pannolino" && l.cosa !== "pipi" && now - l.t < 3 * 86400000).sort((x, y) => y.t - x.t);
+
+  const bianca = nasc.find((l) => l.colore === "bianco");
+  if (bianca)
+    out.push({ k: "bianco-" + bianca.id, liv: "alto", t: "Hai registrato una cacca bianca o grigiastra", d: "Un colore così pallido va fatto vedere presto al pediatra, soprattutto nei primi mesi di vita.", q: "Cacca bianca/grigiastra (" + fmtData(isoDay(new Date(bianca.t))) + "): da controllare" });
+  const rossa = nasc.find((l) => l.colore === "rosso");
+  if (rossa)
+    out.push({ k: "rosso-" + rossa.id, liv: "alto", t: "Hai registrato una cacca con sangue", d: "Tracce di sangue vanno sempre segnalate al pediatra. Se ce n'è tanto o il bimbo sta male, chiama subito.", q: "Cacca con sangue (" + fmtData(isoDay(new Date(rossa.t))) + ")" });
+  const nera = nasc.find((l) => l.colore === "nero");
+  if (nera && giorni > 7)
+    out.push({ k: "nero-" + nera.id, liv: "alto", t: "Hai registrato una cacca nera", d: "Dopo i primi giorni di vita (il meconio è nero ed è normale) è meglio chiedere al pediatra.", q: "Cacca nera (" + fmtData(isoDay(new Date(nera.t))) + ")" });
+  const dure = nasc.filter((l) => l.cons === "dura");
+  if (dure.length >= 2)
+    out.push({ k: "dura-" + dure[0].id, liv: "basso", t: "Cacca dura più volte negli ultimi giorni", d: "Può essere stitichezza: se fa fatica, piange o ha la pancia dura, chiedi consiglio al pediatra (non dare rimedi da solo).", q: "Cacca dura e fatica a evacuare: cosa fare?" });
+
+  // pannolini bagnati di ieri (solo se il diario è in uso e il bimbo è piccolo)
+  if (giorni >= 5 && giorni <= 130) {
+    const ieri = new Date();
+    ieri.setDate(ieri.getDate() - 1);
+    const iso = isoDay(ieri);
+    const L = logsDelGiorno(b, iso).filter((l) => l.tipo === "pannolino");
+    const bagnati = L.filter((l) => l.cosa === "pipi" || l.cosa === "misto").length;
+    if (L.length >= 2 && bagnati < 5)
+      out.push({ k: "bagnati-" + iso, liv: "basso", t: `Ieri hai registrato ${bagnati} pannolini bagnati`, d: "Di solito, da qualche giorno di vita, sono 5-6 o più al giorno. Se li hai registrati tutti ed è così da più giorni, parlane col pediatra: potrebbe non mangiare abbastanza.", q: "Pochi pannolini bagnati (" + bagnati + " in un giorno): è normale?" });
+  }
+
+  // troppo tempo dall'ultima poppata (solo neonati piccoli, solo se si registra)
+  if (giorni < 56 && !b.sonnoInizio) {
+    const pop = b.logs.filter((l) => l.tipo === "poppata").sort((x, y) => y.t - x.t)[0];
+    if (pop && now - pop.t > 5 * 3600000 && now - pop.t < 12 * 3600000)
+      out.push({ k: "pop-" + pop.id, liv: "basso", t: "Sono passate più di 5 ore dall'ultima poppata registrata", d: "Nei primi due mesi di solito mangia ogni 2-4 ore. Se non l'hai registrata ignora questo messaggio; se dorme molto e non si sveglia per mangiare, chiedi al pediatra come regolarti.", q: "Dorme molto e mangia poco: ogni quanto devo svegliarlo?" });
+  }
+  return out.filter((a) => !(b.avvisiOk || {})[a.k]);
+}
+
 function progresso(b, m) {
   let tot = 0, ok = 0;
   for (const a of Object.keys(MESI[m].tappe)) {
@@ -52,7 +97,8 @@ function descLog(l) {
   }
   if (l.tipo === "pannolino") {
     const n = { pipi: "Pipì", cacca: "Cacca", misto: "Pipì e cacca" }[l.cosa] || "Pannolino";
-    return { em: "💧", bg: "var(--mint-soft)", t: n, d: "" };
+    const det = [l.colore ? COLORI[l.colore] : "", l.cons ? CONSISTENZE[l.cons] : ""].filter(Boolean).join(", ");
+    return { em: "💧", bg: "var(--mint-soft)", t: n, d: det };
   }
   if (l.tipo === "sonno") {
     const min = (l.a - l.t) / 60000;
@@ -193,6 +239,8 @@ function vOggi(b) {
     ${e.prem ? `<span class="corr">Età corretta: ${etaTesto(e.corr)}</span>` : ""}
   </section>
 
+  ${boxSegnali(b)}
+
   <section class="card tappa-card">
     <div class="tappa-head">
       <div class="mese-blob">${m}</div>
@@ -228,6 +276,17 @@ function vOggi(b) {
       : ""
   }
   `;
+}
+
+function boxSegnali(b) {
+  const L = segnali(b);
+  if (!L.length) return "";
+  return L.map((a) => `<section class="callout ${a.liv === "alto" ? "doc" : "info"}">
+      <h3>${a.liv === "alto" ? "⚠️" : "👀"} ${esc(a.t)}</h3>
+      <p style="margin:6px 0 10px">${esc(a.d)}</p>
+      <div class="row"><button class="btn small" data-act="segnaleDomanda" data-k="${esc(a.k)}">Aggiungi alle domande</button><button class="btn ghost small" data-act="segnaleOk" data-k="${esc(a.k)}">Ho capito</button></div>
+      <p class="small muted" style="margin:10px 0 0">Avviso informativo, non una diagnosi. Nei casi urgenti chiama il pediatra o il 112.</p>
+    </section>`).join("");
 }
 
 function rigaVaccino(v) {
@@ -470,6 +529,11 @@ function vImpo(b) {
   }
   <button class="btn soft block" data-act="aggiungiBimbo">+ Aggiungi un altro bimbo (gemelli, fratellino)</button>
   <section class="card">
+    <h2>Avvisi dal diario</h2>
+    <p class="small muted">Messaggi gentili se registri una cacca di colore da controllare, pochi pannolini bagnati o una poppata lontana nei primissimi mesi. Sono solo informativi.</p>
+    <button class="btn ${b.noAvvisi ? "soft" : "ghost"} block" style="margin-top:8px" data-act="avvisiToggle">${b.noAvvisi ? "Avvisi disattivati: riattiva" : "Avvisi attivi: disattiva"}</button>
+  </section>
+  <section class="card">
     <h2>Backup dei dati</h2>
     <p class="small muted">I dati sono solo su questo telefono. Se cambi telefono o disinstalli l'app, li perdi: salva un backup e conservalo (email, cloud).</p>
     <div class="row" style="margin-top:8px"><button class="btn soft grow" data-act="esporta">Salva backup</button><button class="btn ghost grow" data-act="importa">Ripristina</button></div>
@@ -568,6 +632,10 @@ const acts = {
     const root = sheetRoot();
     scegli(root, el.dataset.grp, el.dataset.val);
     if (el.dataset.grp === "via") root.querySelector("#s-lab").textContent = el.dataset.val === "bib" ? "Quantità (ml)" : "Durata (minuti)";
+    if (el.dataset.grp === "cosa") {
+      const c = root.querySelector("#s-cacca");
+      if (c) c.hidden = el.dataset.val === "pipi";
+    }
   },
   salvaPoppata() {
     const root = sheetRoot();
@@ -587,6 +655,10 @@ const acts = {
     openSheet(
       `<h2>💧 Pannolino</h2>
       <div class="choice" style="margin-bottom:12px"><button class="on" data-act="sc" data-grp="cosa" data-val="pipi">Pipì</button><button data-act="sc" data-grp="cosa" data-val="cacca">Cacca</button><button data-act="sc" data-grp="cosa" data-val="misto">Entrambi</button></div>
+      <div id="s-cacca" hidden>
+        <div class="field"><label>Colore</label><div class="choice">${Object.entries(COLORI).map(([k, n]) => `<button data-act="sc" data-grp="colore" data-val="${k}"><i class="cdot" style="background:${COL_HEX[k]}"></i>${n}</button>`).join("")}</div></div>
+        <div class="field"><label>Consistenza</label><div class="choice">${Object.entries(CONSISTENZE).map(([k, n]) => `<button data-act="sc" data-grp="cons" data-val="${k}">${n}</button>`).join("")}</div></div>
+      </div>
       ${sheetOra()}
       <button class="btn block" data-act="salvaPannolino">Salva</button>`,
       (el) => (el.dataset.cosa = "pipi")
@@ -594,7 +666,13 @@ const acts = {
   },
   salvaPannolino() {
     const root = sheetRoot();
-    baby().logs.push({ id: uid(), tipo: "pannolino", cosa: root.dataset.cosa || "pipi", t: leggiOra() });
+    const cosa = root.dataset.cosa || "pipi";
+    const l = { id: uid(), tipo: "pannolino", cosa, t: leggiOra() };
+    if (cosa !== "pipi") {
+      if (root.dataset.colore) l.colore = root.dataset.colore;
+      if (root.dataset.cons) l.cons = root.dataset.cons;
+    }
+    baby().logs.push(l);
     save();
     closeSheet();
     render(true);
@@ -743,6 +821,33 @@ const acts = {
     delete baby().vaccini[el.dataset.id];
     save();
     closeSheet();
+    render(true);
+  },
+
+  /* --- avvisi --- */
+  segnaleOk(el) {
+    const b = baby();
+    b.avvisiOk = b.avvisiOk || {};
+    b.avvisiOk[el.dataset.k] = true;
+    save();
+    render(true);
+  },
+  segnaleDomanda(el) {
+    const b = baby();
+    const a = segnali(b).find((x) => x.k === el.dataset.k);
+    if (a) {
+      b.domande.push({ id: uid(), testo: a.q, fatta: false });
+      b.avvisiOk = b.avvisiOk || {};
+      b.avvisiOk[a.k] = true;
+      save();
+      render(true);
+      toast("Aggiunta alle domande per il pediatra");
+    }
+  },
+  avvisiToggle() {
+    const b = baby();
+    b.noAvvisi = !b.noAvvisi;
+    save();
     render(true);
   },
 
