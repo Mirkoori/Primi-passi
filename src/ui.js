@@ -8,7 +8,7 @@ export const I = {
   check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7"/></svg>',
   chev: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg>',
   back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7"/></svg>',
-  logo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 19c0-4 3-4 3-8a3 3 0 0 1 6 0c0 4-3 4-3 8"/><circle cx="17.5" cy="6" r="1.4" fill="currentColor"/><circle cx="6.5" cy="6.5" r="1.1" fill="currentColor"/></svg>',
+  logo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 10V6.8a2.5 2.5 0 0 1 5 0V10"/><rect x="3" y="10" width="18" height="5" rx="2.5"/><circle cx="12" cy="19" r="2.6"/></svg>',
 };
 
 const sheet = () => document.getElementById("sheet");
