@@ -3,7 +3,7 @@ import { Preferences } from "@capacitor/preferences";
 const KEY = "piccolipassi.v1";
 
 // Tutti i dati restano sul telefono (nessun account, nessun server).
-export const S = { babies: [], active: null };
+export const S = { babies: [], active: null, settings: { theme: "auto" }, onSave: null };
 
 export const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
 
@@ -15,6 +15,7 @@ export async function load() {
       if (d && Array.isArray(d.babies)) {
         S.babies = d.babies;
         S.active = d.active;
+        S.settings = Object.assign({ theme: "auto" }, d.settings || {});
       }
     }
   } catch (e) {
@@ -27,13 +28,15 @@ let t = null;
 export function save() {
   clearTimeout(t);
   t = setTimeout(() => {
-    Preferences.set({ key: KEY, value: JSON.stringify({ babies: S.babies, active: S.active }) }).catch(() => {});
+    Preferences.set({ key: KEY, value: JSON.stringify({ babies: S.babies, active: S.active, settings: S.settings }) }).catch(() => {});
+    if (S.onSave) S.onSave();
   }, 150);
 }
 
 export function replaceAll(d) {
   S.babies = d.babies;
   S.active = d.active;
+  if (d.settings) S.settings = Object.assign({ theme: "auto" }, d.settings);
   if (!S.babies.find((b) => b.id === S.active)) S.active = S.babies[0] ? S.babies[0].id : null;
   save();
 }
@@ -42,12 +45,17 @@ export function baby() {
   return S.babies.find((b) => b.id === S.active) || null;
 }
 
-export function newBaby({ nome, nascita, settimane }) {
+export function newBaby({ nome, nascita, settimane, sesso }) {
   const b = {
     id: uid(),
     nome: nome.trim(),
     nascita,
     settimane: settimane || 40,
+    sesso: sesso || "",
+    cibi: [],
+    visite: [],
+    foto: {},
+    vitd: { on: false, ora: "09:00" },
     logs: [],
     crescita: [],
     fatte: {},
@@ -113,6 +121,8 @@ export function weeksOld(b, now = new Date()) {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   return Math.floor((today - parseDay(b.nascita)) / 86400000 / 7);
 }
+
+export const etaMesiDec = (b, iso) => (parseDay(iso) - refDate(b)) / 86400000 / 30.4375;
 
 export const fmtData = (iso) => parseDay(iso).toLocaleDateString("it-IT", { day: "numeric", month: "short", year: "numeric" });
 export const fmtOra = (ms) => new Date(ms).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });

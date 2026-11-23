@@ -227,3 +227,26 @@ export const GUIDE = [
     ],
   },
 ];
+
+// Allergeni alimentari comuni da introdurre con gradualità (chiedi al pediatra se in famiglia ci sono allergie).
+export const ALLERGENI = ["Latte", "Uovo", "Pesce", "Glutine", "Arachidi", "Frutta a guscio", "Soia", "Sesamo", "Crostacei"];
+
+// Alimenti proposti come scelta rapida. «a» = allergene comune.
+export const CIBI = [
+  { n: "Zucca" }, { n: "Carota" }, { n: "Patata" }, { n: "Zucchina" }, { n: "Broccoli" },
+  { n: "Mela" }, { n: "Pera" }, { n: "Banana" }, { n: "Pesca" },
+  { n: "Riso" }, { n: "Mais e tapioca" }, { n: "Avena" }, { n: "Pasta o semolino", a: "Glutine" },
+  { n: "Pollo" }, { n: "Tacchino" }, { n: "Manzo" }, { n: "Agnello" },
+  { n: "Lenticchie" }, { n: "Ceci" }, { n: "Piselli" },
+  { n: "Merluzzo o platessa", a: "Pesce" }, { n: "Uovo ben cotto", a: "Uovo" },
+  { n: "Yogurt naturale", a: "Latte" }, { n: "Parmigiano", a: "Latte" },
+  { n: "Crema di arachidi liscia", a: "Arachidi" }, { n: "Frutta a guscio in crema", a: "Frutta a guscio" },
+  { n: "Soia", a: "Soia" }, { n: "Tahina (sesamo)", a: "Sesamo" }, { n: "Gamberi", a: "Crostacei" },
+];
+
+export const REAZIONI = {
+  ok: "Tutto bene",
+  lieve: "Rossore o pochi puntini",
+  pancia: "Vomito, diarrea o pancia dura",
+  forte: "Reazione forte",
+};
